@@ -1,38 +1,38 @@
-# lunar lander + reward hacking
+# lunar lander reward hacking
 
-Trained PPO to land the rocket in Gymnasium's LunarLander-v3, then messed with the reward to see if I could make it cheat. It cheated.
+PPO on Gymnasium's LunarLander-v3, with a few changes to the reward to see how the agent's behavior changes.
 
 <p>
 <img src="media/landing.gif" width="300">
 <img src="media/hover_hack.gif" width="300">
 </p>
 
-Left: normal reward, lands fine. Right: I added +1 for every frame the rocket is upright and moving slowly. Sounds harmless, but hovering for 1000 frames pays way more than landing, so it just parks above the pad until the episode times out.
+Left is the built-in reward. Right adds +1 for every frame the rocket is upright and moving slowly. With that bonus, hovering until the 1000 frame limit earns more than landing, so the agent hovers.
 
 ## results
 
-Every model is scored on the normal game with my extra reward turned off, so the numbers are comparable. 1M training steps each, Stable-Baselines3 PPO, about 5 min per run on CPU.
+Each model is scored on the normal game with the extra reward turned off. 1M training steps per run with Stable-Baselines3 PPO, about 5 minutes per run on CPU.
 
 | reward | score | landed |
 |---|---|---|
 | built-in | 257 | 49/50 |
-| built-in + small cost per frame | 267 | 50/50, and ~15% faster |
-| +1 per upright/slow frame | -89 and -64 (2 seeds) | 0/40 |
-| fixed version | 264 and 271 (2 seeds) | 99/100 |
+| built-in + small cost per frame | 267 | 50/50, ~15% faster |
+| +1 per upright/slow frame | -89, -64 (2 seeds) | 0/40 |
+| fixed version | 264, 271 (2 seeds) | 99/100 |
 
-The fix pays for *becoming* upright and slow (the change from one frame to the next) instead of for *being* upright and slow. Over a whole episode that adds up to at most +1, so there's nothing to farm. I kept the per-frame cost too so waiting around isn't free.
+The fixed version pays for the change into the upright and slow state between frames, not for being in it. Over one episode that sums to at most +1, so hovering doesn't earn anything extra. It also keeps the per-frame cost.
 
 ![training curves](media/training_curves.png)
 
-This is the part I thought was funniest. The hacked agent's training score goes up to ~1000 while it literally never lands once.
+The hover agent's training reward reaches about 1000 even though it never lands.
 
-## how big does the bonus have to be?
+## bonus size
 
-I swept the hover bonus from 0.02 up to 1.0 per frame, 2 seeds each.
+Hover bonus swept from 0.02 to 1.0 per frame, 2 seeds each.
 
 ![bonus sweep](media/bonus_sweep.png)
 
-It keeps landing up to about +0.5, but it starts hanging around way before that (at +0.2 landings already take ~40% longer). Somewhere between +0.7 and +1.0 it gives up on landing completely. At +0.7 the two seeds landed 43% and 87% of the time, so right at the edge it basically depends on luck during training.
+The agent still lands at +0.5, but landings take longer from +0.2 on (about 40% longer). By +1.0 it never lands. At +0.7 the two seeds landed 43% and 87% of the time.
 
 Raw numbers for every run are in `results/`.
 
@@ -45,4 +45,4 @@ python train.py baseline          # or timefee, hover, fix, hover:0.5
 python evaluate.py baseline_s0    # scores on the normal game and saves a clip
 ```
 
-`rewards.py` has all the reward versions.
+All reward versions are in `rewards.py`.
